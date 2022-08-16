@@ -213,7 +213,7 @@ def init_logger(log_file='train.log'):
     return logger
 
 
-def train_fungi_network(nw_dir, n_epochs=20, wb=False, seed=42):
+def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
 
     data_file = os.path.join(nw_dir, "data_with_labels.csv")
     log_file = os.path.join(nw_dir, "FungiEfficientNet-B0.log")
@@ -229,7 +229,6 @@ def train_fungi_network(nw_dir, n_epochs=20, wb=False, seed=42):
     valid_dataset = NetworkFungiDataset(df, transform=get_transforms(data='valid'))
 
     # batch_sz * accumulation_step = 64
-    batch_sz = 32
     accumulation_steps = 2
     #n_epochs = 20
     n_workers = 8
@@ -415,6 +414,7 @@ if __name__ == '__main__':
     parser.add_argument('--network_dir', default="/home/cin/Projects/FungiClassification/saved_models")
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--n_epochs', type=int, default=30)
+    parser.add_argument('--batch_sz', type=int, default=32)
     parser.add_argument('--no_wb', action='store_false')
     parser.add_argument('--wb_project', default="summerschool22")
     args = parser.parse_args()
@@ -432,6 +432,12 @@ if __name__ == '__main__':
     get_participant_credits(team, team_pw)
     print_data_set_numbers(team, team_pw)
     get_all_data_with_labels(team, team_pw, args.image_dir, args.network_dir)
-    train_fungi_network(args.network_dir, n_epochs=args.n_epochs, wb=args.no_wb, seed=args.seed)
+    train_fungi_network(
+        args.network_dir,
+        n_epochs=args.n_epochs,
+        batch_sz=args.batch_sz,
+        wb=args.no_wb,
+        seed=args.seed,
+    )
     evaluate_network_on_test_set(team, team_pw, args.image_dir, args.network_dir)
     compute_challenge_score(team, team_pw, args.network_dir)
