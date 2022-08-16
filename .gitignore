@@ -1,3 +1,5 @@
+init.sh
+
 # Byte-compiled / optimized / DLL files
 saved_models/
 __pycache__/
