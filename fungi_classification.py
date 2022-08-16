@@ -131,14 +131,30 @@ def get_all_data_with_labels(tm, tm_pw, id_dir, nw_dir):
 
 
 class NetworkFungiDataset(Dataset):
-    def __init__(self, df, transform=None):
+    def __init__(self, df, transform=None, preload=False):
         self.df = df
         self.transform = transform
+        self.preloaded = False
+        if preload:
+            self.preload() 
+
 
     def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx):
+
+    def preload(self):
+        print('Preloading data')
+        self.images = []
+        self.labels = []
+        for idx in range(len(self.df)):
+            image, label = self.load_image(idx)
+            self.images.append(image)
+            self.labels.append(label)
+        self.preloaded = True
+
+
+    def load_image(self, idx):
         file_path = self.df['image'].values[idx]
         label = 0
         if self.df['class'].values[idx] is not None:
@@ -155,11 +171,21 @@ class NetworkFungiDataset(Dataset):
             print(sys.exc_info())
             return None, None
 
+        return image, label
+
+
+    def __getitem__(self, idx):
+        if self.preloaded:
+            image, label = self.images[idx], self.labels[idx]
+        else:
+            image, label = self.load_image(idx)
+
         if self.transform:
             augmented = self.transform(image=image)
             image = augmented['image']
 
         return image, label
+
 
 
 def get_transforms(data):
