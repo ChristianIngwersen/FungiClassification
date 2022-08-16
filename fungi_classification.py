@@ -1,3 +1,4 @@
+import argparse
 import os.path
 import sys
 import pandas as pd
@@ -409,26 +410,28 @@ def compute_challenge_score(tm, tm_pw, nw_dir):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--image_dir', default="/data/AIDatasets/fungi/DF20M/")
+    parser.add_argument('--network_dir', default="/home/cin/Projects/FungiClassification/saved_models")
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--n_epochs', type=int, default=30)
+    parser.add_argument('--no_wb', action='store_false')
+    parser.add_argument('--wb_project', default="summerschool22")
+    args = parser.parse_args()
+
     # Your team and team password
     #team = "BigAnt"
     #team_pw = "fungi66"
     team = "RapidSlug"
     team_pw = "fungi36"
 
-    # where is the full set of images placed
-    image_dir = "/data/AIDatasets/fungi/DF20M/"
-
-    # where should log files, temporary files and trained models be placed
-    network_dir = "/home/cin/Projects/FungiClassification/saved_models"
-
     # Enable logging
-    wandb.init(project="summerschool22", entity="team-seed")
-
+    if args.no_wb:
+        wandb.init(project=args.wb_project, entity="team-seed", config=args)
 
     get_participant_credits(team, team_pw)
     print_data_set_numbers(team, team_pw)
-    #request_random_labels(team, team_pw)
-    get_all_data_with_labels(team, team_pw, image_dir, network_dir)
-    train_fungi_network(network_dir, n_epochs=30, wb=True, seed=42)
-    evaluate_network_on_test_set(team, team_pw, image_dir, network_dir)
-    compute_challenge_score(team, team_pw, network_dir)
+    get_all_data_with_labels(team, team_pw, args.image_dir, args.network_dir)
+    train_fungi_network(args.network_dir, n_epochs=args.n_epochs, wb=args.no_wb, seed=args.seed)
+    evaluate_network_on_test_set(team, team_pw, args.image_dir, args.network_dir)
+    compute_challenge_score(team, team_pw, args.network_dir)
