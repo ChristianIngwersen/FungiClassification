@@ -21,6 +21,7 @@ import tqdm
 from logging import getLogger, DEBUG, FileHandler, Formatter, StreamHandler
 import time
 import wandb
+from sklearn.model_selection import train_test_split
 
 
 def get_participant_credits(tm, tm_pw):
@@ -250,14 +251,19 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
     print("Number of classes in data", n_classes)
     print("Number of samples with labels", df.shape[0])
 
-    train_dataset = NetworkFungiDataset(df, transform=get_transforms(data='train'))
+    # dfx2 = pd.concat((df, df))
+    # df_train, df_valid = train_test_split(dfx2, test_size=0.3, random_state=seed, stratify=dfx2[['class']])
+    df_train, df_valid = train_test_split(df, test_size=0.3, random_state=seed)
+
+
+    train_dataset = NetworkFungiDataset(df_train, transform=get_transforms(data='train'))
     # TODO: Divide data into training and validation
-    valid_dataset = NetworkFungiDataset(df, transform=get_transforms(data='valid'))
+    valid_dataset = NetworkFungiDataset(df_valid, transform=get_transforms(data='valid'))
 
     # batch_sz * accumulation_step = 64
     accumulation_steps = 2
     #n_epochs = 20
-    n_workers = 8
+    n_workers = 16
     train_loader = DataLoader(train_dataset, batch_size=batch_sz, shuffle=True, num_workers=n_workers)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_sz, shuffle=False, num_workers=n_workers)
 
@@ -332,9 +338,9 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
         scheduler.step(avg_val_loss)
 
         # TODO: Divide data into training and validation
-        score = f1_score(df['class'], preds, average='macro')
-        accuracy = accuracy_score(df['class'], preds)
-        recall_3 = top_k_accuracy_score(df['class'], preds_raw, k=3)
+        score = f1_score(df_valid['class'], preds, average='macro')
+        accuracy = accuracy_score(df_valid['class'], preds)
+        recall_3 = top_k_accuracy_score(df_valid['class'], preds_raw, k=3, labels=range(n_classes))
 
         elapsed = time.time() - start_time
         logger.debug(
