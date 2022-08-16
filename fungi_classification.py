@@ -19,6 +19,7 @@ import numpy as np
 import tqdm
 from logging import getLogger, DEBUG, FileHandler, Formatter, StreamHandler
 import time
+import wandb
 
 
 def get_participant_credits(tm, tm_pw):
@@ -211,7 +212,8 @@ def init_logger(log_file='train.log'):
     return logger
 
 
-def train_fungi_network(nw_dir):
+def train_fungi_network(nw_dir, n_epochs=20, wb=False, seed=42):
+
     data_file = os.path.join(nw_dir, "data_with_labels.csv")
     log_file = os.path.join(nw_dir, "FungiEfficientNet-B0.log")
     logger = init_logger(log_file)
@@ -228,12 +230,12 @@ def train_fungi_network(nw_dir):
     # batch_sz * accumulation_step = 64
     batch_sz = 32
     accumulation_steps = 2
-    n_epochs = 20
+    #n_epochs = 20
     n_workers = 8
     train_loader = DataLoader(train_dataset, batch_size=batch_sz, shuffle=True, num_workers=n_workers)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_sz, shuffle=False, num_workers=n_workers)
 
-    seed_torch(777)
+    seed_torch(seed)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
@@ -250,6 +252,14 @@ def train_fungi_network(nw_dir):
     criterion = nn.CrossEntropyLoss()
     best_score = 0.
     best_loss = np.inf
+
+    if wb:
+        wandb.config.update({
+            "learning_rate": lr,
+            "epochs": n_epochs,
+            "batch_size": batch_sz,
+            "seed": seed
+        })
 
     for epoch in range(n_epochs):
         start_time = time.time()
@@ -316,6 +326,14 @@ def train_fungi_network(nw_dir):
             best_model_name = os.path.join(nw_dir, "DF20M-EfficientNet-B0_best_loss.pth")
             torch.save(model.state_dict(), best_model_name)
 
+        if wb:
+            wandb.log({"avg_loss_train": avg_loss,
+                        "avg_val_loss": avg_val_loss,
+                        "accuracy": accuracy,
+                        "recall": recall_3,
+                        "score": score,
+            })
+
 
 def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
     """
@@ -337,7 +355,7 @@ def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
     imgs_and_data = fcp.get_data_set(team, team_pw, 'test_set')
     df = pd.DataFrame(imgs_and_data, columns=['image', 'class'])
     df['image'] = df.apply(
-        lambda x: im_dir + x['image'] + '.jpg', axis=1)
+        lambda x: im_dir + x['image'] + '.JPG', axis=1)
 
     test_dataset = NetworkFungiDataset(df, transform=get_transforms(data='valid'))
 
@@ -358,7 +376,6 @@ def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
     model.eval()
     preds = np.zeros((len(test_dataset)))
     # preds_raw = []
-
     for i, (images, labels) in tqdm.tqdm(enumerate(test_loader)):
         images = images.to(device)
 
@@ -393,10 +410,10 @@ def compute_challenge_score(tm, tm_pw, nw_dir):
 
 if __name__ == '__main__':
     # Your team and team password
-    # team = "DancingDeer"
-    # team_pw = "fungi44"
-    team = "BigAnt"
-    team_pw = "fungi66"
+    #team = "BigAnt"
+    #team_pw = "fungi66"
+    team = "RapidSlug"
+    team_pw = "fungi36"
 
     # where is the full set of images placed
     image_dir = "/data/AIDatasets/fungi/DF20M/"
@@ -404,11 +421,14 @@ if __name__ == '__main__':
     # where should log files, temporary files and trained models be placed
     network_dir = "/home/cin/Projects/FungiClassification/saved_models"
 
+    # Enable logging
+    wandb.init(project="summerschool22", entity="team-seed")
+
+
     get_participant_credits(team, team_pw)
     print_data_set_numbers(team, team_pw)
-    request_random_labels(team, team_pw)
+    #request_random_labels(team, team_pw)
     get_all_data_with_labels(team, team_pw, image_dir, network_dir)
-    train_fungi_network(network_dir)
+    train_fungi_network(network_dir, n_epochs=30, wb=True, seed=42)
     evaluate_network_on_test_set(team, team_pw, image_dir, network_dir)
     compute_challenge_score(team, team_pw, network_dir)
-
