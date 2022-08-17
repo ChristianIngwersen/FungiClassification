@@ -402,7 +402,7 @@ def evaluate_network(tm, tm_pw, im_dir, nw_dir, dataset='train_labels_set', samp
 
     test_dataset = NetworkFungiDataset(df, transform=get_transforms(data='valid'), evaluation=True)
 
-    batch_sz = 32
+    batch_sz = 2
     n_workers = 8
     test_loader = DataLoader(test_dataset, batch_size=batch_sz, shuffle=False, num_workers=n_workers)
 
@@ -483,7 +483,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_sz', type=int, default=32)
     parser.add_argument('--no_wb', action='store_false')
     parser.add_argument('--wb_project', default="summerschool22")
-    parser.add_argument('--samples_to_load', type=int, default=100)
+    parser.add_argument('--samples_to_load', type=int, default=9999999999)
     args = parser.parse_args()
 
     # Your team and team password
