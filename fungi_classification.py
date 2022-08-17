@@ -11,7 +11,7 @@ from torch.optim import Adam, SGD, AdamW
 # from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, Dataset
 from albumentations import Compose, Normalize, Resize
-from albumentations import RandomCrop, HorizontalFlip, VerticalFlip, RandomBrightnessContrast, CenterCrop, PadIfNeeded, RandomResizedCrop
+from albumentations import RandomCrop, HorizontalFlip, VerticalFlip, RandomBrightnessContrast, CenterCrop, PadIfNeeded, RandomResizedCrop, RandomRotate90
 from albumentations.pytorch import ToTensorV2
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from sklearn.metrics import f1_score, accuracy_score, top_k_accuracy_score
@@ -198,6 +198,7 @@ def get_transforms(data):
             RandomResizedCrop(width, height, scale=(0.8, 1.0)),
             HorizontalFlip(p=0.5),
             VerticalFlip(p=0.5),
+            RandomRotate90(p=0.2),
             RandomBrightnessContrast(p=0.2),
             Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ToTensorV2(),
