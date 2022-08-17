@@ -241,7 +241,7 @@ def init_logger(log_file='train.log'):
     return logger
 
 
-def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
+def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, lr=0.01, optim='sgd', wb=False, seed=42):
 
     data_file = os.path.join(nw_dir, "data_with_labels.csv")
     log_file = os.path.join(nw_dir, "FungiEfficientNet-B0.log")
@@ -277,8 +277,14 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
 
     model.to(device)
 
-    lr = 0.01
-    optimizer = SGD(model.parameters(), lr=lr, momentum=0.9)
+    if optim == 'sgd':
+        optimizer = SGD(model.parameters(), lr=lr, momentum=0.9)
+    elif optim == 'adam':
+        optimizer = Adam(model.parameters(), lr=lr)
+    elif optim == 'adamw':
+        optimizer = AdamW(model.parameters(), lr=lr)
+    else:
+        raise ValueError(f'Invalid optimizer (was: {optim})')
     scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.9, patience=1, verbose=True, eps=1e-6)
 
     criterion = nn.CrossEntropyLoss()
@@ -447,6 +453,8 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--n_epochs', type=int, default=30)
     parser.add_argument('--batch_sz', type=int, default=32)
+    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--optim', choices=['sgd', 'adam', 'adamw'], default='sgd')
     parser.add_argument('--no_wb', action='store_false')
     parser.add_argument('--wb_project', default="summerschool22")
     args = parser.parse_args()
