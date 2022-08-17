@@ -34,6 +34,14 @@ def map_tax2class(df):
     return dict
 
 
+def unroll_listOflists(liste):
+    flat_list = []
+    for sublist in liste:
+        for item in sublist:
+            flat_list.append(item)
+    return liste
+
+
 def get_participant_credits(tm, tm_pw):
     """
         Print available credits for the team
@@ -261,6 +269,7 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42, sam
     log_file = os.path.join(nw_dir, "FungiEfficientNet-B0.log")
     logger = init_logger(log_file)
 
+    
     df = pd.read_csv(data_file, nrows=samples_to_load)
     n_classes = len(df['class'].unique())
     print("Number of classes in data", n_classes)
@@ -445,7 +454,8 @@ def evaluate_network(tm, tm_pw, im_dir, nw_dir, dataset='train_labels_set', samp
     labels_total_map = np.vectorize(map_dict.get)(labels_total)
     wrongs = labels_total_map != preds
    # df = pd.DataFrame(imgs_and_data, columns=['image', 'class'])
-    df_pred_label = pd.DataFrame(list(zip(list(paths[0]), list(labels_total_map), list(preds), list(wrongs))),
+    paths = unroll_listOflists(paths)
+    df_pred_label = pd.DataFrame(list(zip(paths, list(labels_total_map), list(preds), list(wrongs))),
                columns =['images', 'labels', 'preds', 'wrongs'])
     df_pred_label.to_csv(os.path.join(nw_dir, dataset + '_preds_val.csv'))
     # Transform classes into taxonIDs
