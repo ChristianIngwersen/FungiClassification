@@ -144,7 +144,7 @@ def requested_data(team, team_pw):
     return None
 
 
-def get_data_set(team, team_pw, dataset):
+def get_data_set(team, team_pw, dataset, samples=999999):
     """
         Get a given data set with or without labels.
         It returns a list of [image id, label] pairs, where label='None' if the label is not available.
@@ -188,7 +188,8 @@ def get_data_set(team, team_pw, dataset):
 
         imgs_and_labels = []
         if dataset == 'train_labels_set':
-            sql = "select image_id, taxonID from fungi_data where dataset = %s"
+            sql = "select image_id, taxonID from fungi_data where dataset = %s LIMIT {};".format(samples)
+
             val = (dataset,)
             mycursor.execute(sql, val)
             myresults = mycursor.fetchall()

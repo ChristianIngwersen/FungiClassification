@@ -24,6 +24,16 @@ import wandb
 from sklearn.model_selection import train_test_split
 
 
+def map_tax2class(df):
+    dict = {}
+    for i in range(0, len(df)):
+        key = df['taxonID'].to_list()[i]
+        value = df['class'].to_list()[i]
+        dict[key] = value
+
+    return dict
+
+
 def get_participant_credits(tm, tm_pw):
     """
         Print available credits for the team
@@ -132,10 +142,11 @@ def get_all_data_with_labels(tm, tm_pw, id_dir, nw_dir):
 
 
 class NetworkFungiDataset(Dataset):
-    def __init__(self, df, transform=None, preload=False):
+    def __init__(self, df, transform=None, preload=False, evaluation=False):
         self.df = df
         self.transform = transform
         self.preloaded = False
+        self.evaluation = evaluation
         if preload:
             self.preload() 
 
@@ -185,7 +196,11 @@ class NetworkFungiDataset(Dataset):
             augmented = self.transform(image=image)
             image = augmented['image']
 
-        return image, label
+        if not self.evaluation:
+            return image, label
+        else:
+            path = self.df.iloc[idx]['image']
+            return image, label, path
 
 
 
@@ -240,13 +255,13 @@ def init_logger(log_file='train.log'):
     return logger
 
 
-def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
+def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42, samples_to_load=100):
 
     data_file = os.path.join(nw_dir, "data_with_labels.csv")
     log_file = os.path.join(nw_dir, "FungiEfficientNet-B0.log")
     logger = init_logger(log_file)
 
-    df = pd.read_csv(data_file)
+    df = pd.read_csv(data_file, nrows=samples_to_load)
     n_classes = len(df['class'].unique())
     print("Number of classes in data", n_classes)
     print("Number of samples with labels", df.shape[0])
@@ -366,12 +381,9 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
             })
 
 
-def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
-    """
-        Evaluate trained network on the test set and submit the results to the challenge database.
-        The scores can be extracted using compute_challenge_score
-    """
-    print("Evaluating on test set")
+def evaluate_network(tm, tm_pw, im_dir, nw_dir, dataset='train_labels_set', samples=999999999999):
+    
+    print("Evaluating on:", dataset)
 
     best_trained_model = os.path.join(nw_dir, "DF20M-EfficientNet-B0_best_accuracy.pth")
     log_file = os.path.join(nw_dir, "FungiEvaluation.log")
@@ -383,12 +395,12 @@ def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
 
     logger = init_logger(log_file)
 
-    imgs_and_data = fcp.get_data_set(team, team_pw, 'test_set')
+    imgs_and_data = fcp.get_data_set(team, team_pw, dataset, samples) # 'train_labels_set', 'test_set'
     df = pd.DataFrame(imgs_and_data, columns=['image', 'class'])
     df['image'] = df.apply(
         lambda x: im_dir + x['image'] + '.JPG', axis=1)
 
-    test_dataset = NetworkFungiDataset(df, transform=get_transforms(data='valid'))
+    test_dataset = NetworkFungiDataset(df, transform=get_transforms(data='valid'), evaluation=True)
 
     batch_sz = 32
     n_workers = 8
@@ -399,33 +411,56 @@ def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
 
     n_classes = 183
     model = EfficientNet.from_name('efficientnet-b0', num_classes=n_classes)
-    checkpoint = torch.load(best_trained_model)
+    if device.type == 'cpu':
+        checkpoint = torch.load(best_trained_model,
+                                map_location=torch.device('cpu'))
+    else:
+        checkpoint = torch.load(best_trained_model)
     model.load_state_dict(checkpoint)
 
     model.to(device)
 
     model.eval()
+    data_stats = pd.read_csv(data_stats_file)
     preds = np.zeros((len(test_dataset)))
-    # preds_raw = []
-    for i, (images, labels) in tqdm.tqdm(enumerate(test_loader)):
+    labels_total = np.zeros((len(test_dataset)))
+    paths = []
+    wrongs = []
+    #reds_raw = []
+    for i, (images, labels, path) in tqdm.tqdm(enumerate(test_loader)):
         images = images.to(device)
 
         with torch.no_grad():
             y_preds = model(images)
 
         preds[i * batch_sz: (i + 1) * batch_sz] = y_preds.argmax(1).to('cpu').numpy()
-        # preds_raw.extend(y_preds.to('cpu').numpy())
+        #taxon_id = int(data_stats['taxonID'][data_stats['class'] == pred_class])
+        labels = labels.cpu().numpy()
+        labels_total[i * batch_sz: (i + 1) * batch_sz] = labels
+        path = [os.path.basename(i) for i in path]
+        paths.append(path)
+        #preds_raw.extend(y_preds.to('cpu').numpy())
 
+    map_dict = map_tax2class(data_stats)
+    labels_total_map = np.vectorize(map_dict.get)(labels_total)
+    wrongs = labels_total_map != preds
+   # df = pd.DataFrame(imgs_and_data, columns=['image', 'class'])
+    df_pred_label = pd.DataFrame(list(zip(list(paths[0]), list(labels_total_map), list(preds), list(wrongs))),
+               columns =['images', 'labels', 'preds', 'wrongs'])
+    df_pred_label.to_csv(os.path.join(nw_dir, dataset + '_preds_val.csv'))
     # Transform classes into taxonIDs
-    data_stats = pd.read_csv(data_stats_file)
+
     img_and_labels = []
     for i, s in enumerate(imgs_and_data):
         pred_class = int(preds[i])
         taxon_id = int(data_stats['taxonID'][data_stats['class'] == pred_class])
         img_and_labels.append([s[0], taxon_id])
 
-    print("Submitting labels")
-    fcp.submit_labels(tm, tm_pw, img_and_labels)
+    if dataset != 'train_labels_set':
+        print("Submitting labels")
+        fcp.submit_labels(tm, tm_pw, img_and_labels)
+
+
 
 
 def compute_challenge_score(tm, tm_pw, nw_dir):
@@ -448,6 +483,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_sz', type=int, default=32)
     parser.add_argument('--no_wb', action='store_false')
     parser.add_argument('--wb_project', default="summerschool22")
+    parser.add_argument('--samples_to_load', type=int, default=100)
     args = parser.parse_args()
 
     # Your team and team password
@@ -469,6 +505,10 @@ if __name__ == '__main__':
         batch_sz=args.batch_sz,
         wb=args.no_wb,
         seed=args.seed,
+        samples_to_load=args.samples_to_load
     )
-    evaluate_network_on_test_set(team, team_pw, args.image_dir, args.network_dir)
-    compute_challenge_score(team, team_pw, args.network_dir)
+    # evaluate on train/val
+    evaluate_network(team, team_pw, args.image_dir, args.network_dir, 'train_labels_set', args.samples_to_load)
+    # evaluate on test
+    #evaluate_network(team, team_pw, args.image_dir, args.network_dir, 'test_set')
+    #compute_challenge_score(team, team_pw, args.network_dir)
