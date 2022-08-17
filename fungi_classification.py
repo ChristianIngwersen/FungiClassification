@@ -255,6 +255,12 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, wb=False, seed=42):
     df_train, df_valid = train_test_split(df[~mask], test_size=0.3, random_state=seed, stratify=df[~mask][['class']])
     df_train = pd.concat((df_train, df[mask]))
 
+    # Add our extra labels.
+    our_labels_df= pd.read_csv("data_with_our_labels.csv")
+    our_labels_df['image'] = os.path.dirname(df_train.iloc[0]['image']) + '/' + our_labels_df['image']
+    df_train = pd.concat((df_train, our_labels_df))
+    df_train = df_train.drop_duplicates(subset=['image'])
+
     train_dataset = NetworkFungiDataset(df_train, transform=get_transforms(data='train'))
     # TODO: Divide data into training and validation
     valid_dataset = NetworkFungiDataset(df_valid, transform=get_transforms(data='valid'))
