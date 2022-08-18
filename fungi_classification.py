@@ -292,6 +292,11 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, lr=0.01, optim='sgd', 
         raise ValueError(f'Invalid optimizer (was: {optim})')
     scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.9, patience=1, verbose=True, eps=1e-6)
 
+    #criterion = nn.CrossEntropyLoss(torch.tensor(1.0 / df_train['class'].value_counts(), device=device, dtype=torch.float))
+    #weights = torch.tensor(df_train['class'].value_counts(), device=device, dtype=torch.float)
+    #weights /= weights.sum()
+    #criterion = nn.CrossEntropyLoss(1 / weights)
+    #criterion = nn.CrossEntropyLoss(weigths)
     criterion = nn.CrossEntropyLoss()
     best_score = 0.
     best_loss = np.inf
@@ -454,6 +459,9 @@ def compute_challenge_score(tm, tm_pw, nw_dir):
     results = fcp.compute_score(tm, tm_pw)
     # print(results)
     logger.info(results)
+    for k, v in results.items():
+        wandb.summary[k] = v
+    wandb.summary.update()
 
 
 if __name__ == '__main__':
