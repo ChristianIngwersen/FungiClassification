@@ -285,7 +285,7 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, lr=0.01, optim='sgd', 
     accumulation_steps = 2
     #n_epochs = 20
     n_workers = 16
-    train_loader = DataLoader(train_dataset, batch_size=batch_sz, shuffle=True, num_workers=n_workers, sampler = sampler)
+    train_loader = DataLoader(train_dataset, batch_size=batch_sz, num_workers=n_workers, sampler = sampler)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_sz, shuffle=False, num_workers=n_workers)
 
     seed_torch(seed)
