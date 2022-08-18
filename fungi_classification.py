@@ -22,6 +22,20 @@ from logging import getLogger, DEBUG, FileHandler, Formatter, StreamHandler
 import time
 import wandb
 from sklearn.model_selection import train_test_split
+from torch.utils.data import WeightedRandomSampler
+
+
+def get_sampler(df):
+    num_samples = len(df)
+    class_counts = df['class'].value_counts(ascending=True).to_list()
+    class_weights = [num_samples/class_counts[i] for i in range(len(class_counts))]
+    weights = [class_weights[
+        df['class'].squeeze().to_list()[i]]
+                    for i in range(int(num_samples))]
+
+    sampler = WeightedRandomSampler(
+        torch.DoubleTensor(weights), int(num_samples))
+    return sampler
 
 
 def get_participant_credits(tm, tm_pw):
@@ -262,6 +276,7 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, lr=0.01, optim='sgd', 
     df_train = pd.concat((df_train, our_labels_df))
     df_train = df_train.drop_duplicates(subset=['image'])
 
+    sampler = get_sampler(df_train)
     train_dataset = NetworkFungiDataset(df_train, transform=get_transforms(data='train'))
     # TODO: Divide data into training and validation
     valid_dataset = NetworkFungiDataset(df_valid, transform=get_transforms(data='valid'))
