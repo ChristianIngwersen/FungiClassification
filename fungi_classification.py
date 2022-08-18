@@ -252,15 +252,14 @@ def train_fungi_network(nw_dir, n_epochs=20, batch_sz=32, lr=0.01, optim='sgd', 
     print("Number of classes in data", n_classes)
     print("Number of samples with labels", df.shape[0])
 
-    mask = df['class'] == 180 # Handling this class differently because there's only one.
-    df_train, df_valid = train_test_split(df[~mask], test_size=0.3, random_state=seed, stratify=df[~mask][['class']])
-    df_train = pd.concat((df_train, df[mask]))
+    # Use whole set for training and validation.
+    df_train = df
+    df_valid = df
 
-    # Add our extra labels.
-    our_labels_df= pd.read_csv("data_with_our_labels.csv")
-    our_labels_df['image'] = os.path.dirname(df_train.iloc[0]['image']) + '/' + our_labels_df['image']
-    df_train = pd.concat((df_train, our_labels_df))
-    df_train = df_train.drop_duplicates(subset=['image'])
+    # Create separate train and valid sets.
+    # mask = df['class'] == 180 # Handling this class differently because there's only one.
+    # df_train, df_valid = train_test_split(df[~mask], test_size=0.3, random_state=seed, stratify=df[~mask][['class']])
+    # df_train = pd.concat((df_train, df[mask]))
 
     train_dataset = NetworkFungiDataset(df_train, transform=get_transforms(data='train'))
     # TODO: Divide data into training and validation
