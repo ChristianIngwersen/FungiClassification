@@ -391,8 +391,8 @@ def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
     """
     # Use 'test-set' for the set of data that can evaluated several times
     # Use 'final-set' for the final set that will be used in the final score of the challenge
-    use_set = 'test_set'
-    # use_set = 'final_set'
+    # use_set = 'test_set'
+    use_set = 'final_set'
     print(f"Evaluating on {use_set}")
 
     best_trained_model = os.path.join(nw_dir, "DF20M-EfficientNet-B0_best_accuracy.pth")
@@ -405,7 +405,7 @@ def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
 
     logger = init_logger(log_file)
 
-    imgs_and_data = fcp.get_data_set(team, team_pw, 'test_set')
+    imgs_and_data = fcp.get_data_set(team, team_pw, use_set)
     df = pd.DataFrame(imgs_and_data, columns=['image', 'class'])
     df['image'] = df.apply(
         lambda x: im_dir + x['image'] + '.JPG', axis=1)
