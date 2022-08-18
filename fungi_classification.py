@@ -383,8 +383,13 @@ def evaluate_network_on_test_set(tm, tm_pw, im_dir, nw_dir):
     """
         Evaluate trained network on the test set and submit the results to the challenge database.
         The scores can be extracted using compute_challenge_score
+        The function can also be used to evaluate on the final set
     """
-    print("Evaluating on test set")
+    # Use 'test-set' for the set of data that can evaluated several times
+    # Use 'final-set' for the final set that will be used in the final score of the challenge
+    use_set = 'test_set'
+    # use_set = 'final_set'
+    print(f"Evaluating on {use_set}")
 
     best_trained_model = os.path.join(nw_dir, "DF20M-EfficientNet-B0_best_accuracy.pth")
     log_file = os.path.join(nw_dir, "FungiEvaluation.log")
